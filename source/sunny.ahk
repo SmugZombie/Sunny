@@ -1,4 +1,4 @@
-; Sunny v2.4
+; Sunny v2.41
 ; Author: Jeff Reeves
 ; Contributor: Ron Egli [github.com/smugzombie]
 ; Last Updated: June 9, 2016
@@ -726,13 +726,6 @@ if EWD_RButtonState = U  ; Button has been released, so drag is complete.
     SetTimer, EWD_WatchMouse, off
     return
 }
-GetKeyState, EWD_EscapeState, Escape, P
-if EWD_EscapeState = D  ; Escape has been pressed, so drag is cancelled.
-{
-    SetTimer, EWD_WatchMouse, off
-    WinMove, ahk_id %EWD_MouseWin%,, %EWD_OriginalPosX%, %EWD_OriginalPosY%
-    return
-}
 ; Otherwise, reposition the window to match the change in mouse coordinates
 ; caused by the user having dragged the mouse:
 CoordMode, Mouse
@@ -742,14 +735,8 @@ SetWinDelay, -1   ; Makes the below move faster/smoother.
 WinMove, ahk_id %EWD_MouseWin%,, EWD_WinX + EWD_MouseX - EWD_MouseStartX, EWD_WinY + EWD_MouseY - EWD_MouseStartY
 EWD_MouseStartX := EWD_MouseX  ; Update for the next timer-call to this subroutine.
 EWD_MouseStartY := EWD_MouseY
-WinGetPos, EWD_WinX, EWD_WinY,,, %AppName% %Version%
-    IniWrite, %EWD_WinX%, %inipath%, Preferences, MyX
-    IniWrite, %EWD_WinY%, %inipath%, Preferences, MyY
 return
 
 WatchMouse:
-WinGetPos, EWD_WinX, EWD_WinY,,, %AppName% %Version%
-    IniWrite, %EWD_WinX%, %inipath%, Preferences, MyX
-    IniWrite, %EWD_WinY%, %inipath%, Preferences, MyY
     SetTimer, EWD_WatchMouse, off
 return
