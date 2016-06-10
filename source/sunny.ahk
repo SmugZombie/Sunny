@@ -21,7 +21,7 @@ Menu, Tray, Add,
 Menu, Tray, Add, NightMode
 Menu, Tray, Add,
 Menu, Tray, Add, About
-Menu, Tray, Add,
+Menu, Tray, Add, 
 Menu, Tray, Add, Restart
 Menu, Tray, Add, Close
 Menu, Tray, Add,
