@@ -1,6 +1,8 @@
 # Sunny
 ![Alt text](/resources/sunny_icon.png?raw=true "Sunny Logo")
 
+* This version of sunny requires an apikey. Registration is not yet open.
+
 An AutoHotKey-based Multiple Clipboard
 
 ## How To Use:
