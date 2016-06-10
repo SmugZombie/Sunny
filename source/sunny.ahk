@@ -1,4 +1,4 @@
-; Sunny v2.5
+; Sunny v2.51
 ; Author: Jeff Reeves
 ; Contributor: Ron Egli [github.com/smugzombie]
 ; Last Updated: June 9, 2016
@@ -30,6 +30,8 @@ Menu, Tray, Tip, [Sunny v2.5]
 ;Build Main Menu
 Menu, MainMenu, add, Controls
 Menu, MainMenu, add, ClearClippings
+Menu, MainMenu, add, ChangeDisplay
+Menu, MainMenu, add,
 Menu, MainMenu, add, Restart
 
 ; tray icon for source code version
@@ -715,6 +717,7 @@ LCtrl & Tab::
   Return
 
 ; toggle single column and single row modes
+ChangeDisplay:
 LCtrl & CapsLock::
   if(displayType == 1) {
       displayType := 0
