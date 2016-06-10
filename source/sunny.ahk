@@ -1,15 +1,16 @@
-; Sunny v2.41
+; Sunny v2.5
 ; Author: Jeff Reeves
 ; Contributor: Ron Egli [github.com/smugzombie]
 ; Last Updated: June 9, 2016
 
 OnMessage(0x201, "WM_LBUTTONDOWN")
-;OnMessage(0x204, "WM_RBUTTONDOWN")
-;OnMessage(0x207, "WM_MBUTTONDOWN")
+OnMessage(0x204, "WM_RBUTTONDOWN")
 
 #NoEnv
 #Persistent
 #SingleInstance, Force
+#Include Includes\WebRequests.ahk
+#Include Includes\JSON.ahk
 SetWorkingDir, %A_ScriptDir%
 Menu, Tray, NoStandard
 Menu, Tray, Add, Controls
@@ -24,14 +25,19 @@ Menu, Tray, Add,
 Menu, Tray, Add, Restart
 Menu, Tray, Add, Close
 Menu, Tray, Add,
-Menu, Tray, Tip, [Sunny v2.3] by Jeff Reeves
+Menu, Tray, Tip, [Sunny v2.5]
+
+;Build Main Menu
+Menu, MainMenu, add, Controls
+Menu, MainMenu, add, ClearClippings
+Menu, MainMenu, add, Restart
 
 ; tray icon for source code version
 Menu, Tray, Icon, sunny_icon.ico
 
 Process, Priority,, High
 
-; setup clipboards
+; setup clipboards$
 clipboard1 = %clipboard%
 clipboard2 =
 clipboard3 =
@@ -51,6 +57,7 @@ if(iniFound == 1){
   IniRead, displayType, sunny.ini, Display, displayType, 0
   IniRead, toggleSide, sunny.ini, Display, toggleSide, 0
   IniRead, nightMode, sunny.ini, Display, nightMode, 1
+  IniRead, apikey, sunny.ini, Registration, apikey, null
 }
 else {
   ; write ini file with default values
@@ -58,12 +65,16 @@ else {
   IniWrite, 0, sunny.ini, Display, displayType
   IniWrite, 0, sunny.ini, Display, toggleSide
   IniWrite, 1, sunny.ini, Display, nightMode
+  IniWrite, null, sunny.ini, Registration, apikey
 
   ; load defaults
   displayType := 0
   toggleSide := 0
   nightMode := 1
 }
+
+url = https://clipboard.egli.me/?key=%apikey%
+FetchClippings()
 
 ; start program
 Gosub, getSystemInfo
@@ -144,6 +155,9 @@ Close:
 
 OnClipboardChange:
   ; set a temp variable so that it doesn't have to read the clipboard each time
+  UpdateClippings(clipboard)
+
+  return
   tempClipboard = %clipboard%
 
   ; if the item copied doesn't match anything already in the clipboard array
@@ -719,13 +733,18 @@ WM_LBUTTONDOWN() {
    Return
 }
 
-EWD_WatchMouse:
-GetKeyState, EWD_LButtonState, LButton, P
-if EWD_RButtonState = U  ; Button has been released, so drag is complete.
-{
-    SetTimer, EWD_WatchMouse, off
-    return
+WM_RBUTTONDOWN(){
+  Menu, MainMenu, Show
+  Return
 }
+
+EWD_WatchMouse:
+;GetKeyState, EWD_LButtonState, LButton, P
+;if EWD_LButtonState = U  ; Button has been released, so drag is complete.
+;{
+;    SetTimer, EWD_WatchMouse, off
+;    return
+;}
 ; Otherwise, reposition the window to match the change in mouse coordinates
 ; caused by the user having dragged the mouse:
 CoordMode, Mouse
@@ -740,3 +759,71 @@ return
 WatchMouse:
     SetTimer, EWD_WatchMouse, off
 return
+
+FetchClippings(){
+  global
+  response := uriDecode(UrlGet(url))
+  clipboard1 := json(response, "clip0")
+  clipboard2 := json(response, "clip1")
+  clipboard3 := json(response, "clip2")
+  clipboard4 := json(response, "clip3")
+  clipboard5 := json(response, "clip4")
+  clipboard6 := json(response, "clip5")
+  clipboard7 := json(response, "clip6")
+  clipboard8 := json(response, "clip7")
+  clipboard9 := json(response, "clip8")
+  clipboard0 := json(response, "clip9")
+  lasthash := json(response, "hash")
+  Gosub, redrawGUI
+}
+
+UpdateClippings(clip){
+  global
+  clip := uriEncode(clip)
+  json = "{"""clipboard""":"""%clip%"""}"
+  post := UrlPostJSON(url, json)
+  FetchClippings()
+}
+
+CheckClippings(){
+  global
+  url = %url%&checkin=true
+  response := UrlGet(url)
+  lasthash := json(response, "hash")
+}
+
+ClearClippings(){
+  global
+  count = 0
+  while ( count != 10 ){
+    json = "{"""clipboard""":"""(empty)"""}"
+    post := UrlPostJSON(url, json)
+    count ++
+  }
+  FetchClippings()
+}
+
+uriEncode(str) 
+{ 
+   ; Replace characters with uri encoded version except for letters, numbers, 
+   ; and the following: /.~:&=- 
+
+   f = %A_FormatInteger% 
+   SetFormat, Integer, Hex 
+   pos = 1 
+   Loop 
+      If pos := RegExMatch(str, "i)[^\/\w\.~`:%&=-]", char, pos++) 
+         StringReplace, str, str, %char%, % "%" . Asc(char), All 
+      Else Break 
+   SetFormat, Integer, %f% 
+   StringReplace, str, str, 0x, , All 
+   Return, str 
+}
+
+uriDecode(str) {
+    Loop
+        If RegExMatch(str, "i)(?<=%)[\da-f]{1,2}", hex)
+            StringReplace, str, str, `%%hex%, % Chr("0x" . hex), All
+        Else Break
+    Return, str
+}
