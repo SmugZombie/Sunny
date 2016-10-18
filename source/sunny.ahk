@@ -1,5 +1,7 @@
-; Sunny v3.01
+; Sunny v3.10
 ; Author: Jeff Reeves
+; Latest Feature: Users can now specify how many clipboards they 
+;   want in the sunny.ini file, or by using the taskbar menu
 ; Contributor: Ron Egli [github.com/smugzombie] - added ability to drag GUI to anywhere on screen
 
 ; needed to process click-drag events on GUI
@@ -15,6 +17,9 @@ SetWorkingDir, %A_ScriptDir%
 Menu, Tray, NoStandard
 Menu, Tray, Add, Controls
 Menu, Tray, Add,
+Menu, Tray, Add, 5Clips
+Menu, Tray, Add, 10Clips
+Menu, Tray, Add,
 Menu, Tray, Add, Hide
 Menu, Tray, Add, Show
 Menu, Tray, Add,
@@ -25,7 +30,7 @@ Menu, Tray, Add,
 Menu, Tray, Add, Restart
 Menu, Tray, Add, Close
 Menu, Tray, Add,
-Menu, Tray, Tip, [Sunny v3.0] by Jeff Reeves
+Menu, Tray, Tip, [Sunny v3.10] by Jeff Reeves
 
 ; tray icon for source code version
 Menu, Tray, Icon, sunny_icon.ico
@@ -96,6 +101,8 @@ Controls:
 
     Left Ctrl + Tab toggles the vertical mode between the left and
       right of the screen.
+
+    Left Ctrl + Esc toggles whether the GUI is shown on screen or not.
   )
   MsgBox, 0, Controls, %myMessage%
   Return
@@ -134,6 +141,19 @@ Show:
   Gosub, generateGUI
   Return
 
+
+5Clips:
+  numClipboards := 4
+  Gosub, destroyGUI
+  Gosub, generateGUI
+  Return
+
+
+10Clips:
+  numClipboards := 9
+  Gosub, destroyGUI
+  Gosub, generateGUI
+  Return
 
 SaveIni:
   IniWrite, %displayType%, sunny.ini, Display, displayType
