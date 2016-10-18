@@ -1,11 +1,9 @@
-; Sunny v3.00
+; Sunny v3.01
 ; Author: Jeff Reeves
-; Contributor: Ron Egli [github.com/smugzombie]
-; Last Updated: October 17th, 2016
+; Contributor: Ron Egli [github.com/smugzombie] - added ability to drag GUI to anywhere on screen
 
+; needed to process click-drag events on GUI
 OnMessage(0x201, "WM_LBUTTONDOWN")
-;OnMessage(0x204, "WM_RBUTTONDOWN")
-;OnMessage(0x207, "WM_MBUTTONDOWN")
 
 ; environment
 #NoEnv
@@ -258,81 +256,77 @@ generateGUI:
   horizontalPosY := screenHeight - horizontalGUIHeight
   verticalPosY := screenHeight - verticalGUIHeight
 
-  ; set x position of first clipboard column 
-  column0 := 0
+  ; gets the x position of columns and y position of rows for each additional clipboard
 
-  ; gets the x position of columns for each additional clipboard
-  Loop, %numClipboards% {
-    multiple = %A_Index%
-    column%A_Index% := sectionWidth * multiple
+  x := numClipboards
+
+  While (x >= 0) {
+    multiple = %x%
+    column%x% := sectionWidth * multiple
+    row%x% := heightOfRow * multiple
+    x--
   }
 
-  ; sets the y positon of the first clipboard row
-  row0 := 0
+  ; set common GUI settings 
+  Gui, Font, s10, Verdana
+  Gui, +AlwaysOnTop +ToolWindow +LastFound
+  WinSet, Transparent, %transparencyLevel%
+  Gui -Caption
 
-  ; gets the y position of rows for each additional clipboard
-  Loop, %numClipboards% {
-    multiple = %A_Index%
-    row%A_Index% := heightOfRow * multiple
-  }  
-
-  ; setup the GUI
+  ; light or dark mode settings
   if (nightMode == 1){
-    Gui, Font, s10, Verdana
     Gui, Font, cFFFFFF
     Gui, Color, 222222
-    Gui, +AlwaysOnTop +ToolWindow +LastFound
-    WinSet, Transparent, %transparencyLevel%
-    Gui -Caption
   }
   else if (nightMode == 0){
-    Gui, Font, s10, Verdana
     Gui, Font, c111111
     Gui, Color, DFDFDF
-    Gui, +AlwaysOnTop +ToolWindow +LastFound
-    WinSet, Transparent, %transparencyLevel%
-    Gui -Caption
   }
 
-  ; checks if GUI is set to either horizontal or vertical display
-  ; if horizontal, single row, GUI
-  if(displayType == 0){
+  ; create first clipboard 
+  Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row0% x%column0% gputOnClipboard0 vclipboard0, [0] %clipboard0%
 
-    ; create first clipboard 
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row0% x%column0% gputOnClipboard0 vclipboard0, [0] %clipboard0%
+  ; generate each additional clipboard 
+  Loop, %numClipboards% {
 
-    ; generate each additional clipboard 
-    Loop, %numClipboards% {
+    ; checks if GUI is set to either horizontal or vertical display
+    ; if horizontal, single row, GUI
+    if(displayType == 0) {
       column := column%A_Index%
-      clip := clipboard%A_Index%
-      Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row0% x%column% gputOnClipboard%A_Index% vclipboard%A_Index%, [%A_Index%] %clip%
+      row := 0
+      GUIHeight := horizontalGUIHeight
+      GUIWidth := screenWidth
+      GUIYPos := horizontalPosY
+      GUIXPos := column0 
     }
-    
-    ; show GUI
-    if(hideGUI == 0) {
-      Gui, Show, W%screenWidth% H%horizontalGUIHeight% x%column0% y%horizontalPosY%, Sunny
-    }
-
-  }
-  ; else if vertical, single column, GUI
-  else if (displayType == 1) {
-
-    ; create first clipboard 
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row0% x%column0% gputOnClipboard0 vclipboard0, [0] %clipboard0%
-
-    ; generate each additional clipboard 
-    Loop, %numClipboards% {
+    ; else if vertical, single column, GUI
+    else if (displayType == 1) {
+      column := 0
       row := row%A_Index%
-      clip := clipboard%A_Index%
-      Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row% x%column0% gputOnClipboard%A_Index% vclipboard%A_Index%, [%A_Index%] %clip%
+      GUIHeight := verticalGUIHeight
+      GUIWidth := sectionWidth
+      GUIYPos := verticalPosY
+
+      ; check if the GUI should be on the left or right side
+      if(toggleSide == 0) {
+        GUIXPos := column0
+      }
+      else {
+        GUIXPos := column%numClipboards%
+      }
+       
     }
-    
-    ; show GUI
-    if(hideGUI == 0) {
-      Gui, Show, W%sectionWidth% H%verticalGUIHeight% x%column0% y%verticalPosY%, Sunny
-    }
+
+    clip := clipboard%A_Index%
+
+    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row% x%column% gputOnClipboard%A_Index% vclipboard%A_Index%, [%A_Index%] %clip%
   }
   
+  ; if GUI is not hidden
+  if(hideGUI == 0) {
+    Gui, Show, W%GUIWidth% H%GUIHeight% x%GUIXPos% y%GUIYPos%, Sunny
+  }
+
   ; redrawGUI
   Gosub, redrawGUI
 
@@ -350,77 +344,40 @@ redrawGUI:
   startPos := 1
   endPos := sectionWidth / fontSize
 
+  ; loop over all clips
+  x := numClipboards
+  While (x >= 0) {
+    tempClipboard := clipboard%x%
+    trimmedClipboard%x% := SubStr(tempClipboard, startPos, endPos)
 
-  trimmedClipboard0 := SubStr(clipboard0, startPos, endPos)
-  trimmedClipboard1 := SubStr(clipboard1, startPos, endPos)
-  trimmedClipboard2 := SubStr(clipboard2, startPos, endPos)
-  trimmedClipboard3 := SubStr(clipboard3, startPos, endPos)
-  trimmedClipboard4 := SubStr(clipboard4, startPos, endPos)
-  trimmedClipboard5 := SubStr(clipboard5, startPos, endPos)
-  trimmedClipboard6 := SubStr(clipboard6, startPos, endPos)
-  trimmedClipboard7 := SubStr(clipboard7, startPos, endPos)
-  trimmedClipboard8 := SubStr(clipboard8, startPos, endPos)
-  trimmedClipboard9 := SubStr(clipboard9, startPos, endPos)
+    ; trim leading and trailing whitespace
+    StringReplace, trimmedClipboard%x%, trimmedClipboard%x%, `r`n,,
+    StringReplace, trimmedClipboard%x%, trimmedClipboard%x%, `n,,
 
-  ; loop through trimmed clipboards to remove bad formatting
-  loop, 10 {
-   ; trim leading and trailing whitespace
-   trimmedClipboard%A_Index% := trimmedClipboard%A_Index%
-   ;StringReplace, trimmedClipboard%A_Index%, trimmedClipboard%A_Index%, %A_SPACE%, ,
-   StringReplace, trimmedClipboard%A_Index%, trimmedClipboard%A_Index%, `r`n, %A_SPACE%,
+    ; redrawn the GUI with the trimmed text
+    currentTrim := trimmedClipboard%x%
+    GuiControl, -redraw, clipboard%x%
+    GuiControl,, clipboard%x%, [%x%] %currentTrim%
+    GuiControl, +redraw, clipboard%x%
+
+    ; decrement 
+    x--
   }
-
-  GuiControl, -redraw, clipboard0
-  GuiControl,, clipboard0, [0] %trimmedClipboard0%
-  GuiControl, +redraw, clipboard0
-
-  GuiControl, -redraw, clipboard1
-  GuiControl,, clipboard1, [1] %trimmedClipboard1%
-  GuiControl, +redraw, clipboard1
-
-  GuiControl, -redraw, clipboard2
-  GuiControl,, clipboard2, [2] %trimmedClipboard2%
-  GuiControl, +redraw, clipboard2
-
-  GuiControl, -redraw, clipboard3
-  GuiControl,, clipboard3, [3] %trimmedClipboard3%
-  GuiControl, +redraw, clipboard3
-
-  GuiControl, -redraw, clipboard4
-  GuiControl,, clipboard4, [4] %trimmedClipboard4%
-  GuiControl, +redraw, clipboard4
-
-  GuiControl, -redraw, clipboard5
-  GuiControl,, clipboard5, [5] %trimmedClipboard5%
-  GuiControl, +redraw, clipboard5
-
-  GuiControl, -redraw, clipboard6
-  GuiControl,, clipboard6, [6] %trimmedClipboard6%
-  GuiControl, +redraw, clipboard6
-
-  GuiControl, -redraw, clipboard7
-  GuiControl,, clipboard7, [7] %trimmedClipboard7%
-  GuiControl, +redraw, clipboard7
-
-  GuiControl, -redraw, clipboard8
-  GuiControl,, clipboard8, [8] %trimmedClipboard8%
-  GuiControl, +redraw, clipboard8
-
-  GuiControl, -redraw, clipboard9
-  GuiControl,, clipboard9, [9] %trimmedClipboard9%
-  GuiControl, +redraw, clipboard9
 
   ; shift focus back to active window
   WinActivate, ahk_id %activeWindow%
   Return
 
+
 destroyGUI:
   Gui, Destroy
   Return
 
+
 putContentOnClipboard(clipboardNum){
   clipboard := clipboard%clipboardNum%
 }
+
 
 putOnClipboard1:
   putContentOnClipboard(1)
@@ -462,6 +419,7 @@ putOnClipboard0:
   putContentOnClipboard(0)
   Return
 
+
 sendContentOnClipboard(clipboardNum){
   oldClipboard := clipboard
   clipboard := clipboard%clipboardNum%
@@ -470,6 +428,7 @@ sendContentOnClipboard(clipboardNum){
   clipboard := oldClipboard
   oldClipboard =
 }
+
 
 LCtrl & 1::
   ;sendContentOnClipboard(1)
@@ -611,6 +570,7 @@ LCtrl & Numpad0::
   SendInput, ^v
   Return
 
+
 ; hide/show GUI
 LCtrl & Esc::
   if(hideGUI := !hideGUI){
@@ -621,6 +581,7 @@ LCtrl & Esc::
   }
   Gosub, SaveIni
   Return
+
 
 ; Toggle the side the GUI is on (single column mode)
 LCtrl & Tab::
@@ -650,6 +611,7 @@ LCtrl & CapsLock::
   Gosub, SaveIni
   Return
 
+; processes mouse button drag
 WM_LBUTTONDOWN() {
    PostMessage, 0xA1, 2
    SetTimer, WatchMouse, 1000
