@@ -1,16 +1,19 @@
-; Sunny v2.41
+; Sunny v3.00
 ; Author: Jeff Reeves
 ; Contributor: Ron Egli [github.com/smugzombie]
-; Last Updated: June 9, 2016
+; Last Updated: October 17th, 2016
 
 OnMessage(0x201, "WM_LBUTTONDOWN")
 ;OnMessage(0x204, "WM_RBUTTONDOWN")
 ;OnMessage(0x207, "WM_MBUTTONDOWN")
 
+; environment
 #NoEnv
 #Persistent
 #SingleInstance, Force
 SetWorkingDir, %A_ScriptDir%
+
+; taskbar menu
 Menu, Tray, NoStandard
 Menu, Tray, Add, Controls
 Menu, Tray, Add,
@@ -24,24 +27,13 @@ Menu, Tray, Add,
 Menu, Tray, Add, Restart
 Menu, Tray, Add, Close
 Menu, Tray, Add,
-Menu, Tray, Tip, [Sunny v2.3] by Jeff Reeves
+Menu, Tray, Tip, [Sunny v3.0] by Jeff Reeves
 
 ; tray icon for source code version
 Menu, Tray, Icon, sunny_icon.ico
 
+; set the process to high prority
 Process, Priority,, High
-
-; setup clipboards
-clipboard1 = %clipboard%
-clipboard2 =
-clipboard3 =
-clipboard4 =
-clipboard5 =
-clipboard6 =
-clipboard7 =
-clipboard8 =
-clipboard9 =
-clipboard0 =
 
 ; user settings
 IniRead, iniFound, sunny.ini, Found, iniFound, 0
@@ -51,6 +43,8 @@ if(iniFound == 1){
   IniRead, displayType, sunny.ini, Display, displayType, 0
   IniRead, toggleSide, sunny.ini, Display, toggleSide, 0
   IniRead, nightMode, sunny.ini, Display, nightMode, 1
+  IniRead, hideGUI, sunny.ini, Display, hideGUI, 0
+  IniRead, numClipboards, sunny.ini, Clipboards, numClipboards, 9
 }
 else {
   ; write ini file with default values
@@ -58,17 +52,35 @@ else {
   IniWrite, 0, sunny.ini, Display, displayType
   IniWrite, 0, sunny.ini, Display, toggleSide
   IniWrite, 1, sunny.ini, Display, nightMode
+  IniWrite, 0, sunny.ini, Display, hideGUI
+  IniWrite, 10, sunny.ini, Clipboards, numClipboards
 
   ; load defaults
   displayType := 0
   toggleSide := 0
   nightMode := 1
+  hideGUI := 0
+  numClipboards := 9
+}
+
+; initialize clipboards
+; create as many clipboards as desired by ini file
+; default is 10 (9 with zero index)
+Loop, %numClipboards% {
+
+  if(%A_Index% != 0) {
+    clipboard%A_Index% =
+  }
+  else {
+    clipboard0 = %clipboard%
+  }
 }
 
 ; start program
 Gosub, getSystemInfo
 Gosub, generateGUI
 Return
+
 
 Controls:
   myMessage =
@@ -90,6 +102,7 @@ Controls:
   MsgBox, 0, Controls, %myMessage%
   Return
 
+
 About:
   myMessage =
   (
@@ -108,24 +121,29 @@ About:
     Sunny is named after Sunny Emmerich in the Metal Gear universe.
 
     If you should have any questions or suggestions, please email me at:
-        jeff@jefflr.com
+        jeff@alchemist.digital
   )
   MsgBox, 0, About, %myMessage%
   Return
+
 
 Hide:
   Gosub, destroyGUI
   Return
 
+
 Show:
   Gosub, generateGUI
   Return
+
 
 SaveIni:
   IniWrite, %displayType%, sunny.ini, Display, displayType
   IniWrite, %toggleSide%, sunny.ini, Display, toggleSide
   IniWrite, %nightMode%, sunny.ini, Display, nightMode
+  IniWrite, %hideGUI%, sunny.ini, Display, hideGUI
   Return
+
 
 NightMode:
   ;toggle nightMode to on or off
@@ -134,268 +152,187 @@ NightMode:
   Gosub, generateGUI
   Return
 
+
 Restart:
   Reload
   Return
+
 
 Close:
   ExitApp
   Return
 
+
 OnClipboardChange:
   ; set a temp variable so that it doesn't have to read the clipboard each time
   tempClipboard = %clipboard%
 
-  ; if the item copied doesn't match anything already in the clipboard array
-  if((tempClipboard != clipboard0) && (tempClipboard != clipboard9) && (tempClipboard != clipboard8) && (tempClipboard != clipboard7) && (tempClipboard != clipboard6) && (tempClipboard != clipboard5) && (tempClipboard != clipboard4) && (tempClipboard != clipboard3) && (tempClipboard != clipboard2) && (tempClipboard != clipboard1)){
+  ; stores the index to start replacing at
+  ; default is total number of clipboards
+  replaceAt = %numClipboards%
+
+  ; loop through all clipboards
+  Loop, %numClipboards% {
+
+    ; check for any matches
+    if(clipboard%A_Index% == tempClipboard) {
+      matchFound := 1
+
+      ; get the clip number where a match was found
+      replaceAt = %A_Index%
+      
+      ; break out of loop 
+      Break 
+    }
+  }
+
+  ; loop through the number of clipboards needing to be shifted over
+  while (replaceAt > 0) {
+
+    replaceFrom := replaceAt - 1
+
     ; shift each clipboard over one
-    clipboard0 := clipboard9
-    clipboard9 := clipboard8
-    clipboard8 := clipboard7
-    clipboard7 := clipboard6
-    clipboard6 := clipboard5
-    clipboard5 := clipboard4
-    clipboard4 := clipboard3
-    clipboard3 := clipboard2
-    clipboard2 := clipboard1
-    clipboard1 = %tempClipboard%
-
-    Gosub, redrawGUI
+    clipboard%replaceAt% := clipboard%replaceFrom%
+    
+    ; decrement 
+    replaceAt--
   }
 
-  if(tempClipboard == clipboard0){
-    clipboard0 := clipboard9
-    clipboard9 := clipboard8
-    clipboard8 := clipboard7
-    clipboard7 := clipboard6
-    clipboard6 := clipboard5
-    clipboard5 := clipboard4
-    clipboard4 := clipboard3
-    clipboard3 := clipboard2
-    clipboard2 := clipboard1
-    clipboard1 = %tempClipboard%
-    Gosub, redrawGUI
-  }
-  else if(tempClipboard == clipboard9){
-    clipboard9 := clipboard8
-    clipboard8 := clipboard7
-    clipboard7 := clipboard6
-    clipboard6 := clipboard5
-    clipboard5 := clipboard4
-    clipboard4 := clipboard3
-    clipboard3 := clipboard2
-    clipboard2 := clipboard1
-    clipboard1 = %tempClipboard%
-    Gosub, redrawGUI
-  }
-  else if(tempClipboard == clipboard8){
-    clipboard8 := clipboard7
-    clipboard7 := clipboard6
-    clipboard6 := clipboard5
-    clipboard5 := clipboard4
-    clipboard4 := clipboard3
-    clipboard3 := clipboard2
-    clipboard2 := clipboard1
-    clipboard1 = %tempClipboard%
-    Gosub, redrawGUI
-  }
-  else if(tempClipboard == clipboard7){
-    clipboard7 := clipboard6
-    clipboard6 := clipboard5
-    clipboard5 := clipboard4
-    clipboard4 := clipboard3
-    clipboard3 := clipboard2
-    clipboard2 := clipboard1
-    clipboard1 = %tempClipboard%
-    Gosub, redrawGUI
-  }
-  else if(tempClipboard == clipboard6){
-    clipboard6 := clipboard5
-    clipboard5 := clipboard4
-    clipboard4 := clipboard3
-    clipboard3 := clipboard2
-    clipboard2 := clipboard1
-    clipboard1 = %tempClipboard%
-    Gosub, redrawGUI
-  }
-  else if(tempClipboard == clipboard5){
-    clipboard5 := clipboard4
-    clipboard4 := clipboard3
-    clipboard3 := clipboard2
-    clipboard2 := clipboard1
-    clipboard1 = %tempClipboard%
-    Gosub, redrawGUI
-  }
-  else if(tempClipboard == clipboard4){
-    clipboard4 := clipboard3
-    clipboard3 := clipboard2
-    clipboard2 := clipboard1
-    clipboard1 = %tempClipboard%
-    Gosub, redrawGUI
-  }
-  else if(tempClipboard == clipboard3){
-    clipboard3 := clipboard2
-    clipboard2 := clipboard1
-    clipboard1 = %tempClipboard%
-    Gosub, redrawGUI
-  }
-  else if(tempClipboard == clipboard2){
-    clipboard2 := clipboard1
-    clipboard1 = %tempClipboard%
-    Gosub, redrawGUI
-  }
+  ; place latest copy to the first clipboard
+  clipboard0 := tempClipboard
 
+  ; clear tempClipboard
   tempClipboard =
+
+  ; redraw GUI 
+  Gosub, redrawGUI
+
   Return
+
 
 getSystemInfo:
-  ; get the primary monitor
-  SysGet, monitorPrimary, MonitorPrimary
+  ; get total number of monitors 
+  SysGet, numMonitors, MonitorCount
+  ;MsgBox, numMonitors %numMonitors%
 
-  ; get the name of the monitor
-  SysGet, monitorName, MonitorName, monitorPrimary
-  ; get the resolution of the monitor
-  SysGet, monitorArea, Monitor, monitorPrimary
-  ; get the work-able area (non-taskbar) of the monitors
-  SysGet, monitorWorkArea, MonitorWorkArea, monitorPrimary
-  Return
+  ; get primary monitor 
+  SysGet, primaryMonitor, MonitorPrimary
+  ;MsgBox, primaryMonitor = %primaryMonitor%
+
+  ; loop through each monitor to get their information 
+  Loop, %numMonitors% {
+
+    ; get screen area minus taskbar
+    SysGet, tempWorkArea, MonitorWorkArea, %A_Index%
+    monitor%A_Index%Width := tempWorkAreaRight - tempWorkAreaLeft
+    monitor%A_Index%Height := tempWorkAreaBottom - tempWorkAreaTop
+
+    tempValue := monitor%A_Index%Width
+    tempValue2 := monitor%A_Index%Height
+    ;MsgBox, monitor%A_Index%Width = %tempValue% `nmonitor%A_Index%Height = %tempValue2%
+  }
+
+  Return 
 
 generateGUI:
 
-  ; if we are generating only a single row
+  ; gets the total number of clipboards 
+  totalClibpboards := numClipboards + 1 ; accounts for base 0 
+
+  ; sets values of the GUI
+  heightOfRow := 20
+  transparencyLevel := 200
+
+  ; gets the full height and width of the display screen
+  screenHeight :=  monitor%primaryMonitor%Height
+  screenWidth :=  monitor%primaryMonitor%Width
+
+  ; sets horizontal and vertical GUI height
+  horizontalGUIHeight := 20
+  verticalGUIHeight := 20 * totalClibpboards
+
+  ; splits the work-able screen area to the number of clipboards
+  sectionWidth := screenWidth / totalClibpboards
+
+  ; sets the bottom position of the GUI above the taskbar
+  horizontalPosY := screenHeight - horizontalGUIHeight
+  verticalPosY := screenHeight - verticalGUIHeight
+
+  ; set x position of first clipboard column 
+  column0 := 0
+
+  ; gets the x position of columns for each additional clipboard
+  Loop, %numClipboards% {
+    multiple = %A_Index%
+    column%A_Index% := sectionWidth * multiple
+  }
+
+  ; sets the y positon of the first clipboard row
+  row0 := 0
+
+  ; gets the y position of rows for each additional clipboard
+  Loop, %numClipboards% {
+    multiple = %A_Index%
+    row%A_Index% := heightOfRow * multiple
+  }  
+
+  ; setup the GUI
+  if (nightMode == 1){
+    Gui, Font, s10, Verdana
+    Gui, Font, cFFFFFF
+    Gui, Color, 222222
+    Gui, +AlwaysOnTop +ToolWindow +LastFound
+    WinSet, Transparent, %transparencyLevel%
+    Gui -Caption
+  }
+  else if (nightMode == 0){
+    Gui, Font, s10, Verdana
+    Gui, Font, c111111
+    Gui, Color, DFDFDF
+    Gui, +AlwaysOnTop +ToolWindow +LastFound
+    WinSet, Transparent, %transparencyLevel%
+    Gui -Caption
+  }
+
+  ; checks if GUI is set to either horizontal or vertical display
+  ; if horizontal, single row, GUI
   if(displayType == 0){
 
-    ; sets values of the GUI
-    heightOfGUI := 20
-    heightOfRow := 20
-    transparencyLevel := 200
+    ; create first clipboard 
+    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row0% x%column0% gputOnClipboard0 vclipboard0, [0] %clipboard0%
 
-    ; sets the bottom position of the GUI above the taskbar
-    posY := monitorAreaBottom - (heightOfGUI * 3)
-
-    ; splits the work-able screen area into eleven cells
-    sectionWidth := monitorWorkAreaRight / 10
-
-    ; gets the x position of columns
-    column1 := 0
-    column2 := sectionWidth
-    column3 := sectionWidth * 2
-    column4 := sectionWidth * 3
-    column5 := sectionWidth * 4
-    column6 := sectionWidth * 5
-    column7 := sectionWidth * 6
-    column8 := sectionWidth * 7
-    column9 := sectionWidth * 8
-    column0 := sectionWidth * 9
-
-    ;gets the y positon of rows
-    row1 := 0
-
-    ; setup the GUI
-    if (nightMode == 1){
-      Gui, Font, s10, Verdana
-      Gui, Font, cFFFFFF
-      Gui, Color, 222222
-      Gui, +AlwaysOnTop +ToolWindow +LastFound
-      WinSet, Transparent, %transparencyLevel%
-      Gui -Caption
+    ; generate each additional clipboard 
+    Loop, %numClipboards% {
+      column := column%A_Index%
+      clip := clipboard%A_Index%
+      Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row0% x%column% gputOnClipboard%A_Index% vclipboard%A_Index%, [%A_Index%] %clip%
     }
-    else if (nightMode == 0){
-      Gui, Font, s10, Verdana
-      Gui, Font, c111111
-      Gui, Color, DFDFDF
-      Gui, +AlwaysOnTop +ToolWindow +LastFound
-      WinSet, Transparent, %transparencyLevel%
-      Gui -Caption
-    }
-
-    ; single row of GUI
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x%column1% gputOnClipboard1 vclipboardOne, [1] %clipboard1%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x%column2% gputOnClipboard2 vclipboardTwo, [2] %clipboard2%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x%column3% gputOnClipboard3 vclipboardThree, [3] %clipboard3%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x%column4% gputOnClipboard4 vclipboardFour, [4] %clipboard4%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x%column5% gputOnClipboard5 vclipboardFive, [5] %clipboard5%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x%column6% gputOnClipboard6 vclipboardSix, [6] %clipboard6%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x%column7% gputOnClipboard7 vclipboardSeven, [7] %clipboard7%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x%column8% gputOnClipboard8 vclipboardEight, [8] %clipboard8%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x%column9% gputOnClipboard9 vclipboardNine, [9] %clipboard9%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x%column0% gputOnClipboard0 vclipboardTen, [0] %clipboard0%
-
-    ; sets hide control on GUI
-    ;Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% Center y0 x%column10% gdestroyGUI, Hide
-
+    
     ; show GUI
-    Gui, Show, W%monitorWorkAreaRight% H%heightOfGUI% x%column1% y%posY%, Sunny
+    if(hideGUI == 0) {
+      Gui, Show, W%screenWidth% H%horizontalGUIHeight% x%column0% y%horizontalPosY%, Sunny
+    }
+
   }
-  ; we are generating a vertical column
-  else if (displayType == 1){
+  ; else if vertical, single column, GUI
+  else if (displayType == 1) {
 
-    heightOfRow := 20
-    heightOfGUI := heightOfRow * 10 ;gives the height for all ten columns
-    transparencyLevel := 200
+    ; create first clipboard 
+    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row0% x%column0% gputOnClipboard0 vclipboard0, [0] %clipboard0%
 
-    ; sets the bottom position of the GUI above the taskbar
-    posY := monitorAreaBottom - (heightOfRow * 12)
-
-    ; splits the work-able screen area into four equal parts
-    sectionWidth := monitorWorkAreaRight / 4
-
-    ; gets the x position of columns
-    if(toggleSide == 0){
-      guiX := 0
+    ; generate each additional clipboard 
+    Loop, %numClipboards% {
+      row := row%A_Index%
+      clip := clipboard%A_Index%
+      Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row% x%column0% gputOnClipboard%A_Index% vclipboard%A_Index%, [%A_Index%] %clip%
     }
-    else if(toggleSide == 1){
-      guiX := monitorWorkAreaRight - sectionWidth
-    }
-
-    ; gets the y position of rows
-    row1 := 0
-    row2 := heightOfRow
-    row3 := heightOfRow * 2
-    row4 := heightOfRow * 3
-    row5 := heightOfRow * 4
-    row6 := heightOfRow * 5
-    row7 := heightOfRow * 6
-    row8 := heightOfRow * 7
-    row9 := heightOfRow * 8
-    row0 := heightOfRow * 9
-
-    ; setup the GUI
-    if (nightMode == 1){
-      Gui, Font, s10, Verdana
-      Gui, Font, cFFFFFF
-      Gui, Color, 222222
-      Gui, +AlwaysOnTop +ToolWindow +LastFound
-      WinSet, Transparent, %transparencyLevel%
-      Gui -Caption
-    }
-    else if (nightMode == 0){
-      Gui, Font, s10, Verdana
-      Gui, Font, c111111
-      Gui, Color, DFDFDF
-      Gui, +AlwaysOnTop +ToolWindow +LastFound
-      WinSet, Transparent, %transparencyLevel%
-      Gui -Caption
-    }
-
-    ; single column GUID
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row1% x0 gputOnClipboard1 vclipboardOne, [1] %clipboard1%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row2% x0 gputOnClipboard2 vclipboardTwo, [2] %clipboard2%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row3% x0 gputOnClipboard3 vclipboardThree, [3] %clipboard3%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row4% x0 gputOnClipboard4 vclipboardFour, [4] %clipboard4%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row5% x0 gputOnClipboard5 vclipboardFive, [5] %clipboard5%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row6% x0 gputOnClipboard6 vclipboardSix, [6] %clipboard6%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row7% x0 gputOnClipboard7 vclipboardSeven, [7] %clipboard7%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row8% x0 gputOnClipboard8 vclipboardEight, [8] %clipboard8%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row9% x0 gputOnClipboard9 vclipboardNine, [9] %clipboard9%
-    Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%row0% x0 gputOnClipboard0 vclipboardTen, [0] %clipboard0%
-
-    ; sets hide control on GUI
-    ;Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% Center y0 x%column10% gdestroyGUI, Hide
+    
     ; show GUI
-    Gui, Show, W%sectionWidth% H%heightOfGUI% x%guiX% y%posY%, Sunny
+    if(hideGUI == 0) {
+      Gui, Show, W%sectionWidth% H%verticalGUIHeight% x%column0% y%verticalPosY%, Sunny
+    }
   }
-
+  
   ; redrawGUI
   Gosub, redrawGUI
 
@@ -414,6 +351,7 @@ redrawGUI:
   endPos := sectionWidth / fontSize
 
 
+  trimmedClipboard0 := SubStr(clipboard0, startPos, endPos)
   trimmedClipboard1 := SubStr(clipboard1, startPos, endPos)
   trimmedClipboard2 := SubStr(clipboard2, startPos, endPos)
   trimmedClipboard3 := SubStr(clipboard3, startPos, endPos)
@@ -423,7 +361,6 @@ redrawGUI:
   trimmedClipboard7 := SubStr(clipboard7, startPos, endPos)
   trimmedClipboard8 := SubStr(clipboard8, startPos, endPos)
   trimmedClipboard9 := SubStr(clipboard9, startPos, endPos)
-  trimmedClipboard0 := SubStr(clipboard0, startPos, endPos)
 
   ; loop through trimmed clipboards to remove bad formatting
   loop, 10 {
@@ -433,45 +370,45 @@ redrawGUI:
    StringReplace, trimmedClipboard%A_Index%, trimmedClipboard%A_Index%, `r`n, %A_SPACE%,
   }
 
-  GuiControl, -redraw, clipboardOne
-  GuiControl,, clipboardOne, [1] %trimmedClipboard1%
-  GuiControl, +redraw, clipboardOne
+  GuiControl, -redraw, clipboard0
+  GuiControl,, clipboard0, [0] %trimmedClipboard0%
+  GuiControl, +redraw, clipboard0
 
-  GuiControl, -redraw, clipboardTwo
-  GuiControl,, clipboardTwo, [2] %trimmedClipboard2%
-  GuiControl, +redraw, clipboardTwo
+  GuiControl, -redraw, clipboard1
+  GuiControl,, clipboard1, [1] %trimmedClipboard1%
+  GuiControl, +redraw, clipboard1
 
-  GuiControl, -redraw, clipboardThree
-  GuiControl,, clipboardThree, [3] %trimmedClipboard3%
-  GuiControl, +redraw, clipboardThree
+  GuiControl, -redraw, clipboard2
+  GuiControl,, clipboard2, [2] %trimmedClipboard2%
+  GuiControl, +redraw, clipboard2
 
-  GuiControl, -redraw, clipboardFour
-  GuiControl,, clipboardFour, [4] %trimmedClipboard4%
-  GuiControl, +redraw, clipboardFour
+  GuiControl, -redraw, clipboard3
+  GuiControl,, clipboard3, [3] %trimmedClipboard3%
+  GuiControl, +redraw, clipboard3
 
-  GuiControl, -redraw, clipboardFive
-  GuiControl,, clipboardFive, [5] %trimmedClipboard5%
-  GuiControl, +redraw, clipboardFive
+  GuiControl, -redraw, clipboard4
+  GuiControl,, clipboard4, [4] %trimmedClipboard4%
+  GuiControl, +redraw, clipboard4
 
-  GuiControl, -redraw, clipboardSix
-  GuiControl,, clipboardSix, [6] %trimmedClipboard6%
-  GuiControl, +redraw, clipboardSix
+  GuiControl, -redraw, clipboard5
+  GuiControl,, clipboard5, [5] %trimmedClipboard5%
+  GuiControl, +redraw, clipboard5
 
-  GuiControl, -redraw, clipboardSeven
-  GuiControl,, clipboardSeven, [7] %trimmedClipboard7%
-  GuiControl, +redraw, clipboardSeven
+  GuiControl, -redraw, clipboard6
+  GuiControl,, clipboard6, [6] %trimmedClipboard6%
+  GuiControl, +redraw, clipboard6
 
-  GuiControl, -redraw, clipboardEight
-  GuiControl,, clipboardEight, [8] %trimmedClipboard8%
-  GuiControl, +redraw, clipboardEight
+  GuiControl, -redraw, clipboard7
+  GuiControl,, clipboard7, [7] %trimmedClipboard7%
+  GuiControl, +redraw, clipboard7
 
-  GuiControl, -redraw, clipboardNine
-  GuiControl,, clipboardNine, [9] %trimmedClipboard9%
-  GuiControl, +redraw, clipboardNine
+  GuiControl, -redraw, clipboard8
+  GuiControl,, clipboard8, [8] %trimmedClipboard8%
+  GuiControl, +redraw, clipboard8
 
-  GuiControl, -redraw, clipboardTen
-  GuiControl,, clipboardTen, [0] %trimmedClipboard0%
-  GuiControl, +redraw, clipboardTen
+  GuiControl, -redraw, clipboard9
+  GuiControl,, clipboard9, [9] %trimmedClipboard9%
+  GuiControl, +redraw, clipboard9
 
   ; shift focus back to active window
   WinActivate, ahk_id %activeWindow%
@@ -676,7 +613,7 @@ LCtrl & Numpad0::
 
 ; hide/show GUI
 LCtrl & Esc::
-  if(toggleGUI := !toggleGUI){
+  if(hideGUI := !hideGUI){
       Gosub, destroyGUI
   }
   else {
