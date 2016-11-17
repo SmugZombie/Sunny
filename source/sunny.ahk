@@ -1,4 +1,4 @@
-; Sunny v3.10
+; Sunny v3.11
 ; Author: Jeff Reeves
 ; Latest Feature: Users can now specify how many clipboards they 
 ;   want in the sunny.ini file, or by using the taskbar menu
@@ -56,7 +56,7 @@ else {
   IniWrite, 0, sunny.ini, Display, toggleSide
   IniWrite, 1, sunny.ini, Display, nightMode
   IniWrite, 0, sunny.ini, Display, hideGUI
-  IniWrite, 10, sunny.ini, Clipboards, numClipboards
+  IniWrite, 9, sunny.ini, Clipboards, numClipboards
 
   ; load defaults
   displayType := 0
