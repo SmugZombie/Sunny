@@ -1,5 +1,5 @@
 # Sunny
-![Alt text](/resources/sunny_icon.png?raw=true "Sunny Logo")
+![Alt text](/source/images/sunny_icon.png?raw=true "Sunny Logo")
 
 An AutoHotKey-based Multiple Clipboard Manager
 
