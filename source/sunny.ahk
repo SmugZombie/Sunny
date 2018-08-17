@@ -1,7 +1,5 @@
-; Sunny v3.11
+; Sunny v4.0
 ; Author: Jeff Reeves
-; Latest Feature: Users can now specify how many clipboards they 
-;   want in the sunny.ini file, or by using the taskbar menu
 ; Contributor: Ron Egli [github.com/smugzombie] - added ability to drag GUI to anywhere on screen
 
 ; needed to process click-drag events on GUI
@@ -30,7 +28,7 @@ Menu, Tray, Add,
 Menu, Tray, Add, Restart
 Menu, Tray, Add, Close
 Menu, Tray, Add,
-Menu, Tray, Tip, [Sunny v3.10] by Jeff Reeves
+Menu, Tray, Tip, [Sunny v4.0] by Jeff Reeves
 
 ; tray icon for source code version
 Menu, Tray, Icon, sunny_icon.ico
@@ -47,7 +45,7 @@ if(iniFound == 1){
   IniRead, toggleSide, sunny.ini, Display, toggleSide, 0
   IniRead, nightMode, sunny.ini, Display, nightMode, 1
   IniRead, hideGUI, sunny.ini, Display, hideGUI, 0
-  IniRead, numClipboards, sunny.ini, Clipboards, numClipboards, 9
+  IniRead, numClipboards, sunny.ini, Clipboards, numClipboards, 4
 }
 else {
   ; write ini file with default values
@@ -56,19 +54,19 @@ else {
   IniWrite, 0, sunny.ini, Display, toggleSide
   IniWrite, 1, sunny.ini, Display, nightMode
   IniWrite, 0, sunny.ini, Display, hideGUI
-  IniWrite, 9, sunny.ini, Clipboards, numClipboards
+  IniWrite, 4, sunny.ini, Clipboards, numClipboards
 
   ; load defaults
   displayType := 0
   toggleSide := 0
   nightMode := 1
   hideGUI := 0
-  numClipboards := 9
+  numClipboards := 4
 }
 
 ; initialize clipboards
 ; create as many clipboards as desired by ini file
-; default is 10 (9 with zero index)
+; default is 4 (5 with zero index)
 Loop, %numClipboards% {
 
   if(%A_Index% != 0) {
@@ -94,7 +92,7 @@ Controls:
 
     Click on a previously copied item to copy it back to your primary clipboard.
 
-    Alternatively, press Ctrl + <number> or Ctrl + <numpad_number>
+    Alternatively, press Ctrl + <numpad_number>
       to paste directly from that item to your cursor's position.
 
     Left Ctrl + CapsLock toggles horizontal and vertical modes.
@@ -449,76 +447,6 @@ sendContentOnClipboard(clipboardNum){
   oldClipboard =
 }
 
-
-LCtrl & 1::
-  ;sendContentOnClipboard(1)
-  clipboard := clipboard1
-  Gosub, redrawGUI
-  SendInput, ^v
-  Return
-
-LCtrl & 2::
-  ;sendContentOnClipboard(2)
-  clipboard := clipboard2
-  Gosub, redrawGUI
-  SendInput, ^v
-  Return
-
-LCtrl & 3::
-  ;sendContentOnClipboard(3)
-  clipboard := clipboard3
-  Gosub, redrawGUI
-  SendInput, ^v
-  Return
-
-LCtrl & 4::
-  ;sendContentOnClipboard(4)
-  clipboard := clipboard4
-  Gosub, redrawGUI
-  SendInput, ^v
-  Return
-
-LCtrl & 5::
-  ;sendContentOnClipboard(5)
-  clipboard := clipboard5
-  Gosub, redrawGUI
-  SendInput, ^v
-  Return
-
-LCtrl & 6::
-  ;sendContentOnClipboard(6)
-  clipboard := clipboard6
-  Gosub, redrawGUI
-  SendInput, ^v
-  Return
-
-LCtrl & 7::
-  ;sendContentOnClipboard(7)
-  clipboard := clipboard7
-  Gosub, redrawGUI
-  SendInput, ^v
-  Return
-
-LCtrl & 8::
-  ;sendContentOnClipboard(8)
-  clipboard := clipboard8
-  Gosub, redrawGUI
-  SendInput, ^v
-  Return
-
-LCtrl & 9::
-  ;sendContentOnClipboard(9)
-  clipboard := clipboard9
-  Gosub, redrawGUI
-  SendInput, ^v
-  Return
-
-LCtrl & 0::
-  ;sendContentOnClipboard(0)
-  clipboard := clipboard0
-  Gosub, redrawGUI
-  SendInput, ^v
-  Return
 
 LCtrl & Numpad1::
   ;sendContentOnClipboard(1)
