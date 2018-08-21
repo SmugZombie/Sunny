@@ -1,7 +1,6 @@
-; Revolver (Sunny v4.0)
+; Revolver (formerly Sunny)
 ; Author: Jeff Reeves
 ; Purpose: Multiple clipboard manager for Windows
-; Last Update: Complete rewrite from scratch
 
 ;==[ INIT ]=====================================================================
 
@@ -9,223 +8,151 @@
 #NoEnv
 #Persistent
 #SingleInstance, Force
+Process, Priority,, High
 SetWorkingDir, %A_ScriptDir%
 
-; tray icon for source code version
+; taskbar
+Menu, Tray, Tip, [Revolver] by Jeff Reeves
 Menu, Tray, Icon, revolver-64.png
 
-; set the process to high prority
-Process, Priority,, High
-
 ; debugging
-global _debug := false
+global _debug := 0
 
-; settings
-global numberOfClipboards := 6
-global darkMode := true
-global horizontalMode := true
-global verticalLeftSide := true
-global displayGui := true
+; key variables
+global revolver := Object()
 
-; clipboards and gui elements
-global clipboards := Object()
-loop, % numberOfClipboards {
-    guiClipboard%A_Index% = 
-}
-global sectionWidth := 320 ; default 320 = 1920 px width / 6 clipboards
 
+;==[ MAIN ]=====================================================================
+
+revolver := GetUserINISettings()
+revolver := InitializeClipboards(revolver)
+revolver := GetMonitorInfo(revolver)
+InitializeGUI(revolver)
+UpdateGUI(revolver)
+InitializeKeybinds(revolver)
+SetClipboard(revolver)
+
+
+;==[ SUBROUTINES ]==============================================================
+
+OnClipboardChange:
+    UpdateClipboards(revolver)
+    UpdateGUI(revolver)
+
+    if(_debug) {
+        DisplayValues(revolver)
+    }
+    return
 
 ;==[ FUNCTIONS ]================================================================
 
-; creates the array elements for each clipboard
-; accepts an int value for the number of clipboards to use, default = 6
-initialize_clipboards() {
+GetUserINISettings() {
+    
+    filename := "revolver.ini"
+    clipboardCount := 6
+    hideGUI := 0
+    darkMode := 1
+    horizontalMode := 1
+    positionRight := 1
+    
+    IniRead, iniFound, %filename%, Found, iniFound, 0
 
-    ; sets clipboards object to an empty array
+    if (iniFound){
+        IniRead, clipboardCount,    %filename%, Clipboards, clipboardCount, %clipboardCount%
+        IniRead, hideGUI,           %filename%, Display,    hideGUI,        %hideGUI%
+        IniRead, darkMode,          %filename%, Display,    darkMode,       %darkMode%
+        IniRead, horizontalMode,    %filename%, Display,    horizontalMode, %horizontalMode%
+        IniRead, positionRight,     %filename%, Display,    positionRight,  %positionRight%
+    }
+    else {
+        IniWrite, 1,                %filename%, Found,      iniFound
+        IniWrite, %clipboardCount%, %filename%, Clipboards, clipboardCount
+        IniWrite, %hideGUI%,        %filename%, Display,    hideGUI
+        IniWrite, %darkMode%,       %filename%, Display,    darkMode
+        IniWrite, %horizontalMode%, %filename%, Display,    horizontalMode
+        IniWrite, %positionRight%,  %filename%, Display,    positionRight
+    }
+
+    return, { clipboardCount: clipboardCount
+            , hideGUI: hideGUI
+            , darkMode: darkMode
+            , horizontalMode: horizontalMode
+            , positionRight: positionRight }
+}
+
+InitializeClipboards(this) {
+
     clipboards := Object()
 
-    ; iterate through each clipboard
-    loop, % numberOfClipboards {
-
-        ; create a null string
+    loop, % this.clipboardCount {
         clipboards.Push("")
-
-        ; create an empty variable
-        guiClipboard%A_Index% =
     }
 
-    return
+    this.clipboards := clipboards
+
+    return, this
 }
 
-; initializes the keys to be bound to each clipboard
-initialize_keybinds() {
+UpdateClipboards(this) {
 
-    ; turn off all numpad hotkeys
-    ; useful when reducing the number of clipboards in use
-    loop, 9 {
-        Hotkey, % "~^Numpad" A_Index, Off, UseErrorLevel
+    trimmedClipboard := RegexReplace(clipboard, "^\s+|\s+$")
 
-        ; if the hotkey is not already established (error 5 and 6)
-        if (ErrorLevel in 5,6) {
-
-            ; do nothing
-            continue
-        }
-    }
-
-    ; iterate through each clipboard element in the array
-    ; uses global clipboards array
-    loop, % clipboards.Length() {
-
-        ; activates the numpad hotkeys for each clipboard
-        Hotkey, % "~^Numpad" A_Index, % "loadClip" A_Index
-    }
-
-    return
-}
-
-; updates contents of clipboard array
-; called on any clipboard change
-update_clipboards() {
-
-    ; trim whitespace at the beginning or end of the string
-    tempClipboard := RegexReplace(clipboard, "^\s+|\s+$")
-
-    ; flag for checking if a match was found in the existing clipboards array
-    matchFound := false
-
-    ; iterate through all current clipboards
-    ; uses global clipboards array
-    loop, % clipboards.Length() {
-
-        ; check if any existing array value matches new item
-        if (tempClipboard == clipboards[A_Index]) {
-
-            ; update flag
+    loop, % this.clipboards.Length() {
+        if (trimmedClipboard == this.clipboards[A_Index]) {
             matchFound := true
-
-            ; delete the matched element from the existing array
-            clipboards.RemoveAt(A_Index)
-        
-            ; insert the match back at the start of the array
-            ;   existing values are shifted over automatically
-            clipboards.InsertAt(1, tempClipboard)
+            this.clipboards.RemoveAt(A_Index)
+            this.clipboards.InsertAt(1, trimmedClipboard)
             break
         }
     }
 
-    ; if no match was found
-    if (matchFound == false) {
-
-        ; insert the new item into the start of the array
-        ;   existing values are shifted over automatically
-        clipboards.InsertAt(1, tempClipboard)
-
-        ; remove the last array element
-        clipboards.Pop()
-    }
-
-    ; update GUI
-    update_gui()
-
-    ; debugging output to see values visually
-    if (_debug == true) {
-        MsgBox % "ClipboardLength: " clipboards.Length() "`n`nClipboard1:`n" clipboards[1] "`n`nClipboard2:`n" clipboards[2] "`n`nClipboard3:`n" clipboards[3] "`n`nClipboard4:`n" clipboards[4] "`n`nClipboard5:`n" clipboards[5] "`n`nClipboard6:`n" clipboards[6]
+    if (!matchFound) {
+        this.clipboards.InsertAt(1, trimmedClipboard)
+        this.clipboards.Pop()
     }
 
     return
 }
 
-; changes the content of the active clipboard based on the numpad key pressed
-change_clip(numpadKey := 1) {
+GetMonitorInfo(this) {
 
-    ; make sure numpad key is within range of clipboard array
-    ; uses global clipboards array
-    if (numpadKey <= clipboards.Length()) {
-
-        ; move contents of element on clipboard array to active clipboard
-        clipboard := clipboards[numpadKey]
-
-        ; wait for clipboard to fully update
-        ClipWait, 1
-    }
-
-    return
-}
-
-; pastes the clipboard's contents
-paste_clip() {
-
-    ; send keys to paste
-    SendInput, ^v
-}
-
-get_monitor_info() {
-
-    ; get total number of monitors 
     SysGet, numberOfMonitors, MonitorCount
-
-    ; get primary monitor 
     SysGet, primaryMonitor, MonitorPrimary
-
-    ; debugging output to see values visually
-    if (_debug == true) {
-        MsgBox, % "numberOfMonitors " numberOfMonitors
-        MsgBox, % "primaryMonitor " primaryMonitor
-    }
-
-    ; get primary screen area minus taskbar
-    ; uses global monitorWidth and monitorHeight
     SysGet, workArea, MonitorWorkArea, % primaryMonitor
-    monitorWidth := workAreaRight - workAreaLeft
-    monitorHeight := workAreaBottom - workAreaTop
 
-    ; splits the work-able screen area to the number of clipboards
-    sectionWidth := monitorWidth / clipboards.Length()
+    this.monitorWidth := workAreaRight - workAreaLeft
+    this.monitorHeight := workAreaBottom - workAreaTop
 
-    ; debugging output to see values visually
-    if (_debug == true) {
-        MsgBox % "monitorWidth = " monitorWidth "`nmonitorHeight = " monitorHeight "`nsectionWidth = " sectionWidth
-    }
+    this.sectionWidth := this.monitorWidth / this.clipboards.Length()
 
-    return, { monitorWidth: monitorWidth, monitorHeight: monitorHeight}
+    return, this
 }
 
-; initializes the gui
-initialize_gui(monitorWidth, monitorHeight) {
+InitializeGUI(this) {
 
-    ; sets values of the GUI
+    sectionWidth := this.sectionWidth
     heightOfRow := 20
     transparencyLevel := 200
 
-    ; sets horizontal and vertical GUI height
     horizontalGUIHeight := 20
-    verticalGUIHeight := 20 * clipboards.Length()
+    verticalGUIHeight := 20 * this.clipboards.Length()
 
-    ; sets the bottom position of the GUI above the taskbar
-    horizontalPosY := monitorHeight - horizontalGUIHeight
-    verticalPosY := monitorHeight - verticalGUIHeight
+    horizontalPosY := this.monitorHeight - horizontalGUIHeight
+    verticalPosY := this.monitorHeight - verticalGUIHeight
 
-    ; create arrays to hold the x/y position of rows/columns for each clipboard
     row := []
     column := []
-    Loop, % clipboards.Length() {
+    Loop, % this.clipboards.Length() {
         row.Push(heightOfRow * (A_Index - 1)) ; subtract 1 to count from base 0
-        column.Push(sectionWidth * (A_Index - 1))
-        
-        if (_debug == true) {
-            MsgBox, % A_Index "`nrow " row[A_Index] "`ncolumn " column[A_Index]
-        }
+        column.Push(this.sectionWidth * (A_Index - 1))
     }
 
-    ; set common GUI settings 
     Gui, Font, s10, Verdana
     Gui, +AlwaysOnTop +ToolWindow +LastFound
     WinSet, Transparent, %transparencyLevel%
     Gui -Caption
 
-    ; dark mode
-    if (darkMode == true) {
+    if (this.darkMode) {
         Gui, Font, cFFFFFF
         Gui, Color, 222222
     }
@@ -234,155 +161,128 @@ initialize_gui(monitorWidth, monitorHeight) {
         Gui, Color, DFDFDF
     }
 
-    ; generate the text element for each clipboard in the gui
-    Loop, % clipboards.Length() {
+    Loop, % this.clipboards.Length() {
 
-        ; checks if GUI is set to either horizontal or vertical display
-        ; if horizontal, single row gui
-        if (horizontalMode == true) {
-
+        if (this.horizontalMode == true) {
             currentColumn := column[A_Index]
             currentRow := 0
             GUIHeight := horizontalGUIHeight
-            GUIWidth := monitorWidth
+            GUIWidth := this.monitorWidth
             GUIYPos := horizontalPosY
             GUIXPos := 0 
         }
-        ; else vertical, single column gui
         else {
-
             currentColumn := 0
             currentRow := row[A_Index]
             GUIHeight := verticalGUIHeight
-            GUIWidth := sectionWidth
+            GUIWidth := this.sectionWidth
             GUIYPos := verticalPosY
 
-            ; check if the GUI should be on the left or right side
-            if (verticalLeftSide == true) {
-                GUIXPos := 0
+            if (this.positionRight) {
+                GUIXPos := column[this.clipboards.Length()]
             }
             else {
-                GUIXPos := column[clipboards.Length()]
+                GUIXPos := 0
             }
             
         }
 
-        ; get contents of clipboard
-        currentClip := clipboards[A_Index]
+        currentClip := this.clipboards[A_Index]
 
-        ; generate the gui element for each clipboard
-        Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%currentRow% x%currentColumn% gloadClip%A_Index% vguiClipboard%A_Index%, [%A_Index%] %currentClip%
+        Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%currentRow% x%currentColumn% gClickedGUI, [%A_Index%] %currentClip%
     }
 
-    ; if GUI is not hidden
-    if (displayGui == true) {
-        Gui, Show, W%GUIWidth% H%GUIHeight% x%GUIXPos% y%GUIYPos%, Revolver
+    if (hideGui) {
+        Gui, Hide
     }
     else {
-        Gui, Hide
+        Gui, Show, W%GUIWidth% H%GUIHeight% x%GUIXPos% y%GUIYPos%, Revolver
     }
 
     return
 }
 
-; redraws the gui
-update_gui() {
+UpdateGUI(this) {
 
-    ; declare font size
+    this.sectionWidth := 320
     fontSize := 10
 
-    ; trims text for preview in GUI
     startPos := 1
-    endPos := sectionWidth / fontSize
+    endPos := this.sectionWidth / fontSize
 
-    ; loop over all clips
-    Loop, % clipboards.Length() {
+    Loop, % this.clipboards.Length() {
 
-        tempClipboard := clipboards[A_Index]
-        trimmedClipboard := SubStr(tempClipboard, startPos, endPos)
+        trimmedClipboard := this.clipboards[A_Index]
+        trimmedClipboard := SubStr(trimmedClipboard, startPos, endPos)
 
-        ; trim leading and trailing carriage returns / newlines
         StringReplace, trimmedClipboard, trimmedClipboard, `r`n,,
         StringReplace, trimmedClipboard, trimmedClipboard, `n,,
 
-        ; redrawn the GUI with the trimmed text
-        currentTrim := trimmedClipboard
-        GuiControl, -redraw, guiClipboard%A_Index%
-        GuiControl,, guiClipboard%A_Index%, [%A_Index%] %currentTrim%
-        GuiControl, +redraw, guiClipboard%A_Index%
+        GuiControl, -redraw, % "[" A_Index "]"
+        GuiControl,, % "[" A_Index "]", % "[" A_Index "] " trimmedClipboard 
+        GuiControl, +redraw, % "[" A_Index "]"
     }
     
     return
 }
 
-;==[ MAIN ]=====================================================================
+InitializeKeybinds(this) {
 
-initialize_clipboards()
-system := get_monitor_info()
-OnClipboardChange("update_clipboards")
-initialize_keybinds()
-initialize_gui(system.monitorWidth, system.monitorHeight)
+    hotkeyPrefix := "~^Numpad"
+    maxClipboardCount := 9
 
+    loop, % maxClipboardCount {
+        Hotkey, % hotkeyPrefix A_Index, Off, UseErrorLevel
+        if (ErrorLevel in 5,6) { ; non-existant hotkey error codes
+            continue
+        }
+    }
 
-;==[ SUBROUTINES ]==============================================================
-; unfortuanetly AHK's syntax prevents using gFunction(param) during Gui, Add
-; so it is necessary to create a bunch of subroutines bound to individual labels
-; (see: https://autohotkey.com/boards/viewtopic.php?t=23277) 
+    loop, % this.clipboards.Length() {
+        Hotkey, ~^Numpad%A_Index%, HotkeyPressed
+    }
 
-
-; clipboard hotkey labels
-;   called when clicking on Gui text or 
-
-loadClip1:
-    change_clip(1)
-    paste_clip()
-    update_gui()
     return
-    
-loadClip2:
-    change_clip(2)
-    paste_clip()
-    update_gui()
-    return
+}
 
-loadClip3:
-    change_clip(3)
-    paste_clip()
-    update_gui()
+SetClipboard(this, num := 1) {
+    clipboard := this.clipboards[num]
+    ClipWait, 1
     return
-    
-loadClip4:
-    change_clip(4)
-    paste_clip()
-    update_gui()
-    return
+}
 
-loadClip5:
-    change_clip(5)
-    paste_clip()
-    update_gui()
+PasteClip() {
+    SendInput, ^v
     return
-    
-loadClip6:
-    change_clip(6)
-    paste_clip()
-    update_gui()
-    return
+}
 
-loadClip7:
-    change_clip(7)
-    paste_clip()
-    update_gui()
+HotkeyPressed() {
+    numpadButtonPressed := SubStr(A_ThisHotkey, 9, 1) ; ~^Numpad_
+    SetClipboard(revolver, numpadButtonPressed)
+    PasteClip()
     return
+}
 
-loadClip8:
-    change_clip(8)
-    paste_clip()
-    update_gui()
+ClickedGUI(){
+    guiControlClicked := SubStr(A_GuiControl, 2, 1) ; [_] <content>
+    SetClipboard(revolver, guiControlClicked)
     return
-    
-loadClip9:
-    change_clip(9)
-    paste_clip()
-    update_gui()
+}
+
+DisplayValues(myObject){
+    summary := ""
+    for key, value in myObject {
+        if (IsObject(value)){
+            summary .= key "= [ "
+            for k, v in value {
+                summary .= v ", "
+            }
+            summary .= " ]`n"
+        }
+        else {
+            summary .= key "=" value "`n"
+        }
+    }
+    MsgBox, % summary
     return
+}
