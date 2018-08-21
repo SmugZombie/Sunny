@@ -1,6 +1,6 @@
 # Revolver
 
-![Alt text](/images/revolver-128.png?raw=true "Revolver Logo")
+![Alt text](/resources/images/revolver-128.png?raw=true "Revolver Logo")
 An AutoHotKey-based Multiple Clipboard Manager
 
 ## How to Use (Build)
