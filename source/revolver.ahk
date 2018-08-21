@@ -239,7 +239,7 @@ InitializeKeybinds(this) {
     }
 
     loop, % this.clipboards.Length() {
-        Hotkey, ~^Numpad%A_Index%, HotkeyPressed
+        Hotkey, % hotkeyPrefix A_Index, HotkeyPressed
     }
 
     return
