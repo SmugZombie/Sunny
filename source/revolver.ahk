@@ -1,5 +1,6 @@
 ; Revolver (formerly Sunny)
 ; Author: Jeff Reeves
+; Modifications: Ron Egli
 ; Purpose: Multiple clipboard manager for Windows
 
 ;==[ INIT ]=====================================================================
@@ -11,15 +12,30 @@
 Process, Priority,, High
 SetWorkingDir, %A_ScriptDir%
 
+; enable mouse functionality
+OnMessage(0x203, "WM_LBUTTONDBLCLK")
+OnMessage(0x204, "WM_RBUTTONDOWN")
+
 ; taskbar
 Menu, Tray, Tip, [Revolver] by Jeff Reeves
 Menu, Tray, Icon, revolver-64.png
+Menu, Tray, Add, ToggleGui, ToggleGui
+
+; right click menu
+Menu, Settings, Add, Change Orientation, ChangeView
+Menu, Settings, Add, Change Theme, ChangeTheme
+
+Menu, MainMenu, Add, Reload, GuiReload
+Menu, MainMenu, Add, Settings, :Settings
+Menu, MainMenu, Add
+Menu, MainMenu, Add, Exit, GuiClose
 
 ; debugging
 global _debug := 0
 
 ; key variables
 global revolver := Object()
+filename := "revolver.ini"
 
 
 ;==[ MAIN ]=====================================================================
@@ -47,8 +63,7 @@ OnClipboardChange:
 ;==[ FUNCTIONS ]================================================================
 
 GetUserINISettings() {
-    
-    filename := "revolver.ini"
+    global
     clipboardCount := 6
     hideGUI := 0
     darkMode := 1
@@ -63,6 +78,8 @@ GetUserINISettings() {
         IniRead, darkMode,          %filename%, Display,    darkMode,       %darkMode%
         IniRead, horizontalMode,    %filename%, Display,    horizontalMode, %horizontalMode%
         IniRead, positionRight,     %filename%, Display,    positionRight,  %positionRight%
+        IniRead, MyHeight,          %filename%, Display,    MyHeight,       %MyHeight%, Null
+        IniRead, MyWidth,           %filename%, Display,    MyWidth,        %MyWidth%, Null
     }
     else {
         IniWrite, 1,                %filename%, Found,      iniFound
@@ -77,7 +94,9 @@ GetUserINISettings() {
             , hideGUI: hideGUI
             , darkMode: darkMode
             , horizontalMode: horizontalMode
-            , positionRight: positionRight }
+            , positionRight: positionRight
+            , MyWidth: MyWidth
+            , MyHeight: MyHeight }
 }
 
 InitializeClipboards(this) {
@@ -192,11 +211,24 @@ InitializeGUI(this) {
         Gui, Add, Text, R1 H%heightOfRow% W%sectionWidth% y%currentRow% x%currentColumn% gClickedGUI, [%A_Index%] %currentClip%
     }
 
+    if (this.horizontalMode != true) {
+        ; Add a little tab to allow easier dragging without interacting with clips
+    	GUIHeight := GUIHeight + 10
+    }
+
     if (hideGui) {
         Gui, Hide
     }
     else {
-        Gui, Show, W%GUIWidth% H%GUIHeight% x%GUIXPos% y%GUIYPos%, Revolver
+        ; If we've moved the gui before, put it back where it was
+    	if(this.MyWidth != "Null"){
+    		Width := this.MyWidth
+    		Height := this.MyHeight
+    		Gui, Show, W%GUIWidth% H%GUIHeight% x%Width% y%Height%, Revolver
+		}else{
+			Gui, Show, W%GUIWidth% H%GUIHeight% x%GUIXPos% y%GUIYPos%, Revolver
+		}
+        
     }
 
     return
@@ -286,3 +318,80 @@ DisplayValues(myObject){
     MsgBox, % summary
     return
 }
+
+WM_LBUTTONDBLCLK(wParam, lParam){
+    X := lParam & 0xFFFF
+    Y := lParam >> 16
+		PostMessage, 0xA1, 2,,, A 
+		sleep 500
+		WinGetPos,x,y,w,h,a
+		; Save to INI
+		SaveCoords(x,y)
+}
+
+SaveCoords(myx,myy){
+	global
+	IniWrite, %myy%, %filename%, Display, MyHeight
+	IniWrite, %myx%, %filename%, Display, MyWidth
+}
+
+WM_RBUTTONDOWN(){
+	Menu, MainMenu, Show
+}
+
+ChangeView(){
+	global
+
+	IniRead, horizontalMode,    %filename%, Display,    horizontalMode, %horizontalMode%
+	if(horizontalMode == true){
+		horizontalMode = 0
+	}else{
+		horizontalMode = 1
+	}
+
+	IniWrite, %horizontalMode%, %filename%, Display, horizontalMode
+	reload
+}
+
+ChangeTheme(){
+	global
+
+	IniRead, darkMode,    %filename%, Display,    darkMode, %darkMode%
+	if(darkMode == true){
+		darkMode = 0
+	}else{
+		darkMode = 1
+	}
+
+	IniWrite, %darkMode%, %filename%, Display, darkMode
+	reload
+}
+
+ToggleGui(){
+	global
+
+	IniRead, hideGUI,    %filename%, Display,    hideGUI, %hideGUI%
+	if(hideGUI == true){
+		hideGUI = 0
+	}else{
+		hideGUI = 1
+	}
+
+	IniWrite, %hideGUI%, %filename%, Display, hideGUI
+	reload
+}
+
+ChangeClipCount(){
+	global
+	clipboardCount = 9
+	IniWrite, %clipboardCount%, %filename%, Clipboards, clipboardCount
+	reload
+}
+
+GuiReload:
+Reload
+return
+
+GuiClose:
+ExitApp
+return
